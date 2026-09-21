@@ -8,175 +8,117 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Create Android project
-        run: |
-          mkdir -p app/src/main/java/com/antasena/karaoke
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/values
-
-          cat > settings.gradle <<'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "AntasenaKaraoke"
-          include(":app")
-          EOF
-
-          cat > build.gradle <<'EOF'
-          plugins {
-              id 'com.android.application' version '8.6.1' apply false
-          }
-          EOF
-
-          cat > app/build.gradle <<'EOF'
-          plugins {
-              id 'com.android.application'
-          }
-
-          android {
-              namespace 'com.antasena.karaoke'
-              compileSdk 35
-
-              defaultConfig {
-                  applicationId 'com.antasena.karaoke'
-                  minSdk 23
-                  targetSdk 35
-                  versionCode 1
-                  versionName '1.0'
-              }
-          }
-          EOF
-
-          cat > app/src/main/res/values/strings.xml <<'EOF'
-          <resources>
-              <string name="app_name">Antasena Karaoke</string>
-          </resources>
-          EOF
-
-          cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.INTERNET"/>
-
-              <application
-                  android:theme="@style/AppTheme"
-                  android:label="Antasena Karaoke"
-                  android:usesCleartextTraffic="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:screenOrientation="portrait"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
-
-          cat > app/src/main/res/values/styles.xml <<'EOF'
-          <resources>
-              <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
-                  <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#ff2c9c</item>
-                  <item name="android:navigationBarColor">#070812</item>
-                  <item name="android:statusBarColor">#070812</item>
-                  <item name="android:windowLightStatusBar">false</item>
-              </style>
-          </resources>
-          EOF
-
-          cat > app/src/main/java/com/antasena/karaoke/MainActivity.java <<'EOF'
-          package com.antasena.karaoke;
-
-          import android.Manifest;
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.webkit.PermissionRequest;
-          import android.webkit.WebChromeClient;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-          import android.content.pm.PackageManager;
-
-          public class MainActivity extends Activity {
-              WebView web;
-
-              @Override
-              public void onCreate(Bundle b) {
-                  super.onCreate(b);
-
-                  if (android.os.Build.VERSION.SDK_INT >= 23 &&
-                      checkSelfPermission(Manifest.permission.RECORD_AUDIO)
-                      != PackageManager.PERMISSION_GRANTED) {
-                      requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 100);
-                  }
-
-                  web = new WebView(this);
-                  WebSettings s = web.getSettings();
-                  s.setJavaScriptEnabled(true);
-                  s.setDomStorageEnabled(true);
-                  s.setMediaPlaybackRequiresUserGesture(false);
-
-                  web.setWebViewClient(new WebViewClient());
-
-                  web.setWebChromeClient(new WebChromeClient() {
-                      @Override
-                      public void onPermissionRequest(final PermissionRequest request) {
-                          runOnUiThread(() -> request.grant(request.getResources()));
-                      }
-                  });
-
-                  web.loadDataWithBaseURL(
-                      null,
-                      "<html><body style='background:#070812;color:white;font-family:sans-serif;text-align:center;padding:40px'>" +
-                      "<h1 style='font-size:42px'>ANTASENA <span style='color:#ff2c9c'>KARAOKE</span></h1>" +
-                      "<p>🎤 Sing • Record • Share</p>" +
-                      "<hr><h2>Antasena Karaoke V1</h2>" +
-                      "<p>Pilih lagu dan mulai bernyanyi.</p>" +
-                      "<button onclick='navigator.mediaDevices.getUserMedia({audio:true}).then(()=>alert(\"Microphone siap!\"))' style='padding:18px;border-radius:15px;background:#ff2c9c;color:white;border:0;font-size:18px'>🎤 TEST MICROPHONE</button>" +
-                      "</body></html>",
-                      "text/html",
-                      "UTF-8",
-                      null
-                  );
-
-                  setContentView(web);
-              }
-          }
-          EOF
+          cache: gradle
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10'
 
-      - name: Build APK
-        run: gradle assembleDebug --no-daemon
+      - name: Generate Android project
+        shell: bash
+        run: |
+          set -e
+          mkdir -p app/src/main/java/com/antasena/karaoke
+          mkdir -p app/src/main/res/values
+          cat > settings.gradle <<'EOG'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name='AntasenaKaraoke'
+          include ':app'
+          EOG
+          cat > build.gradle <<'EOG'
+          plugins {
+              id 'com.android.application' version '8.6.1' apply false
+          }
+          EOG
+          cat > app/build.gradle <<'EOG'
+          plugins { id 'com.android.application' }
+          android { namespace 'com.antasena.karaoke'; compileSdk 35
+              defaultConfig { applicationId 'com.antasena.karaoke'; minSdk 24; targetSdk 35; versionCode 2; versionName '2.0' }
+          }
+          EOG
+          cat > app/src/main/res/values/colors.xml <<'EOG'
+          <resources><color name="bg">#070812</color><color name="pink">#FF2C9C</color><color name="card">#151827</color><color name="text">#FFFFFF</color><color name="muted">#A7AEC4</color></resources>
+          EOG
+          cat > app/src/main/res/values/styles.xml <<'EOG'
+          <resources><style name="AppTheme" parent="android:style/Theme.Material.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:colorAccent">@color/pink</item><item name="android:navigationBarColor">@color/bg</item><item name="android:statusBarColor">@color/bg</item><item name="android:windowLightStatusBar">false</item></style></resources>
+          EOG
+          cat > app/src/main/AndroidManifest.xml <<'EOG'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+            <application android:theme="@style/AppTheme" android:label="Antasena Karaoke" android:allowBackup="false" android:supportsRtl="true">
+              <activity android:name=".MainActivity" android:screenOrientation="portrait" android:exported="true">
+                <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOG
+          cat > app/src/main/java/com/antasena/karaoke/MainActivity.java <<'EOG'
+          package com.antasena.karaoke;
+
+          import android.Manifest;
+          import android.app.*;
+          import android.os.*;
+          import android.content.*;
+          import android.content.pm.PackageManager;
+          import android.graphics.Color;
+          import android.media.MediaPlayer;
+          import android.media.MediaRecorder;
+          import android.net.Uri;
+          import android.provider.OpenableColumns;
+          import android.view.*;
+          import android.widget.*;
+          import java.io.*;
+          import java.util.*;
+
+          public class MainActivity extends Activity {
+            LinearLayout list, root; TextView status; MediaPlayer player; MediaRecorder recorder; File recordingFile;
+            ArrayList<Song> songs=new ArrayList<>(); int selected=-1;
+            int pink=Color.rgb(255,44,156), bg=Color.rgb(7,8,18), card=Color.rgb(21,24,39), white=Color.WHITE, muted=Color.rgb(167,174,196);
+            int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
+            TextView tv(String s,float size){TextView t=new TextView(this);t.setText(s);t.setTextColor(white);t.setTextSize(size);t.setPadding(dp(12),dp(8),dp(12),dp(8));return t;}
+            Button btn(String s){Button b=new Button(this);b.setText(s);b.setTextColor(white);b.setAllCaps(false);return b;}
+            @Override public void onCreate(Bundle b){super.onCreate(b); if(Build.VERSION.SDK_INT>=23&&checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},9); buildHome();}
+            void buildHome(){
+              root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(18),dp(16),dp(12));root.setBackgroundColor(bg);
+              TextView logo=tv("ANTASENA KARAOKE",28);logo.setTextColor(white);logo.setGravity(Gravity.CENTER);root.addView(logo,new LinearLayout.LayoutParams(-1,dp(55)));
+              TextView sub=tv("🎤  SING • RECORD • SHARE",15);sub.setTextColor(pink);sub.setGravity(Gravity.CENTER);root.addView(sub);
+              LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL); Button add=btn("＋ Tambah Lagu"); add.setOnClickListener(v->pickAudio());bar.addView(add,new LinearLayout.LayoutParams(-1,dp(55)));root.addView(bar);
+              status=tv("Pilih lagu untuk mulai karaoke.",14);status.setTextColor(muted);root.addView(status);
+              ScrollView sv=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);sv.addView(list);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+              loadSongs();setContentView(root);
+            }
+            void loadSongs(){songs.clear();String saved=getPreferences(0).getString("songs","");if(!saved.isEmpty()){for(String line:saved.split("\\n")){String[] p=line.split("\\|",-1);if(p.length>=2)songs.add(new Song(p[0],p[1]));}}drawSongs();}
+            void saveSongs(){StringBuilder x=new StringBuilder();for(Song s:songs)x.append(s.name).append('|').append(s.uri).append('\\n');getPreferences(0).edit().putString("songs",x.toString()).apply();}
+            void drawSongs(){list.removeAllViews();if(songs.isEmpty()){TextView e=tv("Belum ada lagu. Tekan ＋ Tambah Lagu untuk memilih MP3 dari HP.",17);e.setTextColor(muted);list.addView(e);return;}for(int i=0;i<songs.size();i++){final int n=i;LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(0,dp(7),0,dp(7));TextView name=tv("🎵  "+songs.get(i).name,17);name.setLayoutParams(new LinearLayout.LayoutParams(0,dp(60),1));row.addView(name);Button play=btn("▶");play.setOnClickListener(v->openKaraoke(n));row.addView(play,new LinearLayout.LayoutParams(dp(70),dp(60)));list.addView(row);}}
+            void pickAudio(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("audio/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,10);}
+            @Override protected void onActivityResult(int r,int c,Intent d){super.onActivityResult(r,c,d);if(r==10&&c==RESULT_OK&&d!=null){Uri u=d.getData();try{getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){}String name="Lagu "+(songs.size()+1);Cursor cur=getContentResolver().query(u,null,null,null,null);if(cur!=null){int ix=cur.getColumnIndex(OpenableColumns.DISPLAY_NAME);if(cur.moveToFirst()&&ix>=0)name=cur.getString(ix);cur.close();}songs.add(new Song(name,u.toString()));saveSongs();drawSongs();}}
+            void openKaraoke(int i){selected=i;Song s=songs.get(i);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(18),dp(20),dp(18),dp(15));box.setBackgroundColor(bg);
+              TextView title=tv("🎤 "+s.name,25);title.setGravity(Gravity.CENTER);box.addView(title);TextView lyrics=tv("\n🎶  LIRIK\n\nTambahkan lirik untuk lagu ini pada versi berikutnya.\n\nNyanyikan mengikuti musik.",18);lyrics.setGravity(Gravity.CENTER);lyrics.setTextColor(muted);box.addView(lyrics,new LinearLayout.LayoutParams(-1,0,1));
+              SeekBar vol=new SeekBar(this);vol.setMax(100);vol.setProgress(75);box.addView(vol);LinearLayout controls=new LinearLayout(this);controls.setGravity(Gravity.CENTER);Button back=btn("←");Button play=btn("▶ Putar");Button rec=btn("🔴 Rekam");Button stop=btn("■ Stop");controls.addView(back);controls.addView(play);controls.addView(rec);controls.addView(stop);box.addView(controls);status=tv("Siap.",14);status.setTextColor(muted);box.addView(status);
+              back.setOnClickListener(v->{if(player!=null){player.release();player=null;}buildHome();});play.setOnClickListener(v->{if(player==null){player=MediaPlayer.create(this,Uri.parse(s.uri));player.setOnCompletionListener(x->{status.setText("Lagu selesai.");});}player.setVolume(vol.getProgress()/100f,vol.getProgress()/100f);if(player.isPlaying())player.pause();else player.start();});
+              rec.setOnClickListener(v->startRec());stop.setOnClickListener(v->stopRec());setContentView(box);
+            }
+            void startRec(){try{if(recorder!=null)return;recordingFile=new File(getExternalFilesDir(null),"Antasena_"+System.currentTimeMillis()+".m4a");recorder=new MediaRecorder();recorder.setAudioSource(MediaRecorder.AudioSource.MIC);recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);recorder.setOutputFile(recordingFile.getAbsolutePath());recorder.prepare();recorder.start();status.setText("🔴 Merekam suara...");}catch(Exception e){status.setText("Gagal merekam: "+e.getMessage());recorder=null;}}
+            void stopRec(){if(recorder==null)return;try{recorder.stop();recorder.release();recorder=null;status.setText("Rekaman tersimpan: "+recordingFile.getName());}catch(Exception e){recorder=null;status.setText("Rekaman gagal.");}}
+            @Override protected void onDestroy(){if(player!=null)player.release();if(recorder!=null){try{recorder.stop();}catch(Exception ignored){}recorder.release();}super.onDestroy();}
+            static class Song{String name,uri;Song(String n,String u){name=n;uri=u;}}
+          }
+          EOG
+          gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Antasena-Karaoke-APK
+          name: Antasena-Karaoke-V2
           path: app/build/outputs/apk/debug/app-debug.apk
